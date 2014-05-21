@@ -1,7 +1,7 @@
 rm(list=ls())
 ##PD randomizations for each community
 library(picante) #to compute pd
-library(parallel)
+library(parallel) #this code uses parallel computing
 library(raster) #to generate output rasters
 #=======Functions==================
 
@@ -23,54 +23,55 @@ give_complete_commununity_better= function(m=10000, n, sn,phylo) {
 
 setwd("/home/andreap/Andrea_Filodiversidad/pd_zooregiones/zona_andes")
 ##Load phylogeny
-filogenia<-read.nexus("consenso_andes.nex")
+phylogeny<-read.nexus("consenso_andes.nex")
 ##Load community compostition matrix (each row represents one pixel and each column a species, the last column is the observed PD)
-comunidades<-read.table("pd_aves_andes.txt",h=T,row.names=1)
-species_per_pixel <- unique(apply(comunidades[,1:length(comunidades[1,]) -1],1,sum))
-species_names<-names(comunidades)[1:(length(comunidades[1,])-1)]
+##The first colum must contain the pixel numbers, these will become the rownames
+communities<-read.table("pd_aves_andes.txt",h=T,row.names=1)
+species_per_pixel <- unique(apply(communities[,1:length(communities[1,]) -1],1,sum))
+species_names<-names(communities)[1:(length(communities[1,])-1)]
 
-b<-mclapply(species_per_pixel,function(x) { give_complete_commununity_better(n=x, sn= species_names,phylo=filogenia) }, mc.cores=16 )
+b<-mclapply(species_per_pixel,function(x) { give_complete_commununity_better(n=x, sn= species_names,phylo=phylogeny) }, mc.cores=16 )
 save(b,file="aleat_aves_andes")
 #Create randomization maps
   #First compare observed PD with expected PD
-comunidades1<-comunidades
-comunidades1$numero_sp<-apply(comunidades[,1:length(comunidades[1,]) -1],1,sum)
-comunidades1$valor_p<-NA
-comunidades1$valor_p_inf<-NA
-comunidades1$valor_p_sup<-NA
+communities1<-communities
+communities1$sp_number<-apply(comunidades[,1:length(comunidades[1,]) -1],1,sum)
+communities1$p_values<-NA
+communities1$p_values_lower<-NA
+communities1$p_values_higher<-NA
 
 for (i in 1:length(species_per_pixel))
 {
-  subset_per_count <- subset(comunidades1, comunidades1$numero_sp == species_per_pixel[i])
+  subset_per_count <- subset(communities1, communities1$sp_number == species_per_pixel[i])
   match_rows<-(rownames(subset_per_count))
-  valores_observados<-comunidades1[match_rows,"pd"]
-  number_match<-length(valores_observados)
-  valores_p_sup<-vector()
+  observed_values<-communities1[match_rows,"pd"]
+  number_match<-length(observed_values)
+  p_values_higher<-vector()
   valores_p_inf<-vector()
   for (j in 1:number_match){
     cond<-lapply(b,function(x) x[2][,1][1]==species_per_pixel[i])
-    valores_p_sup[j]<-((sum(b[unlist(cond)][[1]][,1]>=valores_observados[j]))/(10000+1))*2 
-    valores_p_inf[j]<-((sum(b[unlist(cond)][[1]][,1]<=valores_observados[j]))/(10000+1))*2
+    p_values_higher[j]<-((sum(b[unlist(cond)][[1]][,1]>=observed_values[j]))/(10000+1))*2 
+    p_values_lower[j]<-((sum(b[unlist(cond)][[1]][,1]<=observed_values[j]))/(10000+1))*2
   }
 
-  comunidades1[match_rows,"valor_p_inf"]<-valores_p_inf
-  comunidades1[match_rows,"valor_p_sup"]<-valores_p_sup
+  communities1[match_rows,"p_values_lower"]<-p_values_lower
+  communities1[match_rows,"p_values_higher"]<-p_values_higher
   
 }
 
 #Chose P-value betwwwen the inferior and superior value.
-a<-ifelse(comunidades1$valor_p_inf < comunidades1$valor_p_sup, comunidades1$valor_p <- comunidades1$valor_p_inf,  comunidades1$valor_p <- comunidades1$valor_p_sup)
-comunidades1$valor_p<-a
+a<-ifelse(communities1$p_values_lower < communities1$p_values_higher, communities1$p_values <- communities1$p_values_lower,  communities1$p_values <- communities1$p_values_higher)
+communities1$p_values<-a
 
 #Create a column indicating whether the observed PD is Higher or Lower than expected.
-comunidades1$desviacion<-NA
-comunidades1$desviacion[comunidades1$valor_p==comunidades1$valor_p_sup]<-"Superior"
-comunidades1$desviacion[comunidades1$valor_p==comunidades1$valor_p_inf]<-"Inferior"
+communities1$desviacion<-NA
+communities1$desviacion[communities1$p_values==communities1$p_values_higher]<-"Superior"
+communities1$desviacion[communities1$p_values==communities1$p_values_lower]<-"Inferior"
 
 #Subsetting the data frame to obtain one per category (one higher one lower)
 
-comunidades_sup<-subset(comunidades1,desviacion=="Superior")
-comunidades_inf<-subset(comunidades1,desviacion=="Inferior")
+comunidades_sup<-subset(communities1,desviacion=="Superior")
+comunidades_inf<-subset(communities1,desviacion=="Inferior")
 
 #Create rasters and plots for all significantly different than expected pixels, all signifantly higher pixels and all signifcantly lower pixels 
 
@@ -85,7 +86,7 @@ p_value_inf_ras<-r #3
 
 
 #2- Assign P-values to pixels
-p_value_ras[as.integer(rownames(comunidades1))]<-comunidades1$valor_p#1
+p_value_ras[as.integer(rownames(communities1))]<-communities1$valor_p#1
 p_value_sup_ras[as.integer(rownames(comunidades_sup))]<-comunidades_sup$valor_p #2
 p_value_inf_ras[as.integer(rownames(comunidades_inf))]<-comunidades_inf$valor_p #3
 
