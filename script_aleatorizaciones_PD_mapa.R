@@ -5,16 +5,16 @@ library(picante) #para calcular PD
 library(parallel)
 #=======Functions==================
 
-
-give_complete_commununity_better= function(m=10000, n, sn,filogenia) {
+#In this function m refers to number of randomizations, n to number of species in a community, sn to the names of species in the global pool and filogenia to the phylogeny
+give_complete_commununity_better= function(m=10000, n, sn,phylo) {
   #Generar matriz de comunidades
-  v.nombres <- paste("comunidad_aleatoria",1:m,sep="") #nombre de filas
-  comunidades_aleatorias<-matrix(0,nrow=m,ncol=length(sn),dimnames=list(v.nombres,sn))
+  v.names <- paste("random_community",1:m,sep="") #row names
+  random_communities<-matrix(0,nrow=m,ncol=length(sn),dimnames=list(v.names,sn))
   for (k in 1:m) {
       sampling_names <- sample(sn, n)
-      comunidades_aleatorias[k, sampling_names] <- 1
+      random_communities[k, sampling_names] <- 1
     }
-  pd.result<-pd(comunidades_aleatorias,filogenia,include.root=TRUE)
+  pd.result<-pd(random_communities,phylo,include.root=TRUE)
   return(pd.result)
 }
 
@@ -29,7 +29,7 @@ comunidades<-read.table("pd_aves_andes.txt",h=T,row.names=1)
 species_per_pixel <- unique(apply(comunidades[,1:length(comunidades[1,]) -1],1,sum))
 species_names<-names(comunidades)[1:(length(comunidades[1,])-1)]
 
-b<-mclapply(species_per_pixel,function(x) { give_complete_commununity_better(n=x, sn= species_names,filogenia=filogenia) }, mc.cores=16 )
+b<-mclapply(species_per_pixel,function(x) { give_complete_commununity_better(n=x, sn= species_names,phylo=filogenia) }, mc.cores=16 )
 save(b,file="aleat_aves_andes")
 #Hacer mapas de aleatorizaciones
   #Primero comparar
