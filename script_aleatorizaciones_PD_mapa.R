@@ -101,6 +101,20 @@ plot(p_value_ras)
 plot(p_value_sup_ras)
 plot(p_value_inf_ras)
 
+#5 Reclassify rasters to only show significant pixels
+  ##assuming alfa of 0.05
+  ##Create reclassifying matrix. Pixels significantly higher will have a value of 1 and pixels significantly lower a value of -1
+  m<-c(0,0.05,1,0.05,1,NA)
+  rclmat<-matrix(m,ncol=3,byrow=TRUE)
+  p_value_sup<-reclassify(p_value_sup_ras, rclmat)
+   m<-c(0,0.05,-1,0.05,1,NA)
+  rclmat<-matrix(m,ncol=3,byrow=TRUE)
+  p_value_inf<-reclassify(p_value_inf_ras, rclmat)
+  
+ significant_pixels<-mosaic(p_value_sup,p_value_inf, fun=mean)
+writeRaster(significant_pixels,"Significant_pixels.asc")
+  
+  
 
 
 
