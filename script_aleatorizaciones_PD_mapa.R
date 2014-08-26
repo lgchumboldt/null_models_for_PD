@@ -1,3 +1,5 @@
+####Written by Andrea Paz and David Urbina#####
+
 rm(list=ls())
 ##PD randomizations for each community
 library(picante) #to compute pd
